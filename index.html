@@ -100,6 +100,36 @@
       </p>
       <p style="color: #888; font-size: 0.9rem">Engine: Hybrid Dense-Sparse</p>
       <p style="color: #888; font-size: 0.9rem">Model: Llama 3.2 (3B)</p>
+      <div
+        style="margin-top: 40px; border-top: 1px solid #333; padding-top: 20px"
+      >
+        <h3 style="color: #ccc; font-size: 1rem; margin-bottom: 15px">
+          Add Knowledge
+        </h3>
+        <input
+          type="file"
+          id="fileInput"
+          accept=".txt,.pdf"
+          style="display: none"
+          onchange="handleFileUpload()"
+        />
+        <button
+          onclick="document.getElementById('fileInput').click()"
+          style="
+            width: 100%;
+            padding: 10px;
+            background-color: #2d2d2d;
+            border: 1px dashed #555;
+            color: white;
+          "
+        >
+          + Upload TXT or PDF
+        </button>
+        <p
+          id="uploadStatus"
+          style="font-size: 0.8rem; color: #888; margin-top: 10px"
+        ></p>
+      </div>
     </div>
 
     <div class="main-chat">
@@ -175,6 +205,39 @@
 
       function handleKeyPress(event) {
         if (event.key === "Enter") sendMessage();
+      }
+
+      async function handleFileUpload() {
+        const fileInput = document.getElementById("fileInput");
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        const status = document.getElementById("uploadStatus");
+        status.style.color = "#eab308"; // Yellow loading
+        status.textContent = `Processing ${file.name}...`;
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+          const response = await fetch("http://127.0.0.1:8000/api/v1/upload", {
+            method: "POST",
+            body: formData,
+          });
+
+          if (response.ok) {
+            status.style.color = "#4ade80"; // Green success
+            status.textContent = `Success! You can now ask about ${file.name}.`;
+          } else {
+            status.style.color = "#ef4444"; // Red error
+            status.textContent = `Failed to process file.`;
+          }
+        } catch (error) {
+          status.style.color = "#ef4444";
+          status.textContent = "Server connection error.";
+        }
+
+        fileInput.value = ""; // Reset the input
       }
     </script>
   </body>

@@ -60,6 +60,17 @@ class HybridRetriever:
                 
         # Return only the most relevant Top K chunks to save LLM context window space
         return fused_results[:top_k]
+    
+
+    def reload(self):
+            """Forces the retriever to read the newest data from the database"""
+            print("[System] Reloading memory with new documents...")
+            db_data = self.vector_store.get()
+            self.documents = db_data['documents']
+            
+            if self.documents:
+                tokenized_docs = [doc.lower().split() for doc in self.documents]
+                self.bm25 = BM25Okapi(tokenized_docs)
 
 # ==========================================
 # Testing the Search Engine directly

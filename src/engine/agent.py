@@ -44,6 +44,11 @@ class RAGAgent:
         response = chain.invoke({"context": context_text, "question": question})
         return response.content
 
+
+    def reload_knowledge_base(self):
+        """Tells the retriever to update its indexes"""
+        self.retriever.reload()
+
 # ==========================================
 # Testing the Full RAG Pipeline
 # ==========================================
