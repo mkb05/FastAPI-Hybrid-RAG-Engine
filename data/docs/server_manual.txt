@@ -1,0 +1,19 @@
+SYSTEM-X DEPLOYMENT AND TROUBLESHOOTING MANUAL
+Version 2.4.1
+
+1. NETWORK CONFIGURATION
+The primary production server IP address is 192.168.1.100. 
+The fallback staging environment is located at 10.0.0.55.
+All external API requests must be routed through port 8443 to ensure TLS encryption.
+
+2. MAINTENANCE COMMANDS
+If the application crashes, do not reboot the machine immediately. 
+First, attempt to restart the database gracefully by typing the command: 'npm run restart-db'.
+To clear the local cache during a memory leak, execute the command: 'sys-flush-cache --force'.
+
+3. ERROR CODES
+Error Code 404-X: This indicates that the physical memory buffer is completely full. You must upgrade the RAM allocation in the hypervisor.
+Error Code 502-B: This means the API gateway cannot reach the payment processor.
+
+4. CONTACT INFORMATION
+For emergency SSH access, do not use the ticketing system. Contact the lead DevOps engineer directly at extension 909 or email admin@enterprise.local.

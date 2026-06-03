@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Enterprise RAG Navigator</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #121212;
+        color: #ffffff;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        height: 100vh;
+      }
+      .sidebar {
+        width: 250px;
+        background-color: #1e1e1e;
+        padding: 20px;
+        border-right: 1px solid #333;
+      }
+      .main-chat {
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+      }
+      .chat-header {
+        padding: 20px;
+        background-color: #1e1e1e;
+        border-bottom: 1px solid #333;
+        font-weight: bold;
+        font-size: 1.2rem;
+      }
+      .chat-history {
+        flex-grow: 1;
+        padding: 20px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+      .message {
+        padding: 15px;
+        border-radius: 8px;
+        max-width: 80%;
+        line-height: 1.5;
+      }
+      .user-msg {
+        background-color: #2b5278;
+        align-self: flex-end;
+      }
+      .ai-msg {
+        background-color: #2d2d2d;
+        align-self: flex-start;
+        border: 1px solid #444;
+      }
+      .input-area {
+        padding: 20px;
+        background-color: #1e1e1e;
+        border-top: 1px solid #333;
+        display: flex;
+        gap: 10px;
+      }
+      input[type="text"] {
+        flex-grow: 1;
+        padding: 15px;
+        border-radius: 8px;
+        border: 1px solid #444;
+        background-color: #121212;
+        color: white;
+        font-size: 1rem;
+      }
+      button {
+        padding: 15px 30px;
+        border-radius: 8px;
+        border: none;
+        background-color: #3b82f6;
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+      button:hover {
+        background-color: #2563eb;
+      }
+      .loading {
+        display: none;
+        align-self: flex-start;
+        font-style: italic;
+        color: #888;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sidebar">
+      <h2 style="color: #3b82f6; margin-top: 0">Nexus RAG</h2>
+      <p style="color: #888; font-size: 0.9rem">
+        Status: <span style="color: #4ade80">Online</span>
+      </p>
+      <p style="color: #888; font-size: 0.9rem">Engine: Hybrid Dense-Sparse</p>
+      <p style="color: #888; font-size: 0.9rem">Model: Llama 3.2 (3B)</p>
+    </div>
+
+    <div class="main-chat">
+      <div class="chat-header">Local Documentation Assistant</div>
+
+      <div class="chat-history" id="chatBox">
+        <div class="message ai-msg">
+          Hello! I am securely connected to your local technical documents. How
+          can I help you today?
+        </div>
+        <div id="loadingIndicator" class="loading">
+          Searching database and generating response...
+        </div>
+      </div>
+
+      <div class="input-area">
+        <input
+          type="text"
+          id="userInput"
+          placeholder="Ask a question about the server manual..."
+          onkeypress="handleKeyPress(event)"
+        />
+        <button onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+
+    <script>
+      async function sendMessage() {
+        const inputField = document.getElementById("userInput");
+        const chatBox = document.getElementById("chatBox");
+        const loading = document.getElementById("loadingIndicator");
+        const question = inputField.value.trim();
+
+        if (!question) return;
+
+        // 1. Display User Message
+        const userDiv = document.createElement("div");
+        userDiv.className = "message user-msg";
+        userDiv.textContent = question;
+        chatBox.insertBefore(userDiv, loading);
+
+        inputField.value = "";
+        loading.style.display = "block";
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        try {
+          // 2. Send Data to your FastAPI Backend
+          const response = await fetch("http://127.0.0.1:8000/api/v1/query", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ question: question }),
+          });
+
+          const data = await response.json();
+
+          // 3. Display AI Response
+          loading.style.display = "none";
+          const aiDiv = document.createElement("div");
+          aiDiv.className = "message ai-msg";
+          aiDiv.textContent = data.answer || "Error: No answer returned.";
+          chatBox.insertBefore(aiDiv, loading);
+        } catch (error) {
+          loading.style.display = "none";
+          const errorDiv = document.createElement("div");
+          errorDiv.className = "message ai-msg";
+          errorDiv.style.color = "#ef4444";
+          errorDiv.textContent =
+            "Connection Error: Is your FastAPI server running?";
+          chatBox.insertBefore(errorDiv, loading);
+        }
+        chatBox.scrollTop = chatBox.scrollHeight;
+      }
+
+      function handleKeyPress(event) {
+        if (event.key === "Enter") sendMessage();
+      }
+    </script>
+  </body>
+</html>
