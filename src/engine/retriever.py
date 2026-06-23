@@ -2,91 +2,63 @@ import os
 from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings
 from rank_bm25 import BM25Okapi
-from typing import List
 
-DB_DIR = "./chroma_db"
+DB_DIR_BASE = "./chroma_db"
 
 class HybridRetriever:
     def __init__(self):
         print("Initializing Hybrid Retriever...")
-        
-        # 1. Load Vector Database (Semantic Search)
         self.embedding_model = OllamaEmbeddings(model="nomic-embed-text")
-        self.vector_store = Chroma(
-            persist_directory=DB_DIR, 
-            embedding_function=self.embedding_model
-        )
-        
-        # 2. Extract documents to build BM25 Index (Lexical/Keyword Search)
-        # We pull the raw text back out of Chroma to build the keyword index in memory
-        db_data = self.vector_store.get()
-        self.documents = db_data['documents']
-        
-        if not self.documents:
-            print("Warning: Database is empty. Please run ingestor.py first.")
-            return
-            
-        # Tokenize documents for BM25 matching
-        tokenized_docs = [doc.lower().split() for doc in self.documents]
-        self.bm25 = BM25Okapi(tokenized_docs)
-        print(f"Hybrid Retriever ready. Indexed {len(self.documents)} chunks.")
+        self.vector_store = None
+        self.documents = []
+        self.bm25 = None
+        self.current_session_id = None
 
-    def search(self, query: str, top_k: int = 3) -> List[str]:
-        """Performs Sparse-Dense Hybrid Search"""
-        print(f"\n[System] Executing Hybrid Search for: '{query}'")
+    def load_session(self, session_id: str):
+        """Loads the database for a specific session."""
+        if self.current_session_id == session_id:
+            return # Already loaded
+            
+        print(f"[System] Loading memory for session {session_id}...")
+        self.current_session_id = session_id
+        session_db_dir = f"{DB_DIR_BASE}/{session_id}"
         
-        # --- Stream 1: Semantic Vector Search ---
-        # Finds concepts that *mean* the same thing, even if words differ
-        vector_results = self.vector_store.similarity_search(query, k=top_k)
-        vector_docs = [doc.page_content for doc in vector_results]
+        # Reset current state
+        self.documents = []
+        self.bm25 = None
+        self.vector_store = None
+
+        if os.path.exists(session_db_dir):
+            try:
+                self.vector_store = Chroma(persist_directory=session_db_dir, embedding_function=self.embedding_model)
+                db_data = self.vector_store.get()
+                self.documents = db_data.get('documents', [])
+                
+                if self.documents:
+                    tokenized_docs = [doc.lower().split() for doc in self.documents]
+                    self.bm25 = BM25Okapi(tokenized_docs)
+            except Exception as e:
+                print(f"Error reading database for session {session_id}: {e}")
+        else:
+            print(f"No database found for session {session_id}.")
+
+    def reload(self, session_id: str):
+        """Forces reload of the current session's data"""
+        self.current_session_id = None # Force reload
+        self.load_session(session_id)
+
+    def search(self, query: str, top_k: int = 3):
+        if not self.documents or not self.bm25 or not self.vector_store:
+            return []
         
-        # --- Stream 2: Lexical Keyword Search (BM25) ---
-        # Finds exact string matches (crucial for serial numbers, code snippets, etc.)
+        # 1. Semantic Search (Dense)
+        dense_results = self.vector_store.similarity_search(query, k=top_k)
+        dense_docs = [doc.page_content for doc in dense_results]
+
+        # 2. Keyword Search (Sparse)
         tokenized_query = query.lower().split()
-        bm25_docs = self.bm25.get_top_n(tokenized_query, self.documents, n=top_k)
-        
-        # --- Stream 3: Result Fusion & Deduplication ---
-        fused_results = []
-        seen = set()
-        
-        # We interleave the results to balance exact keywords with semantic meaning
-        for v_doc, b_doc in zip(vector_docs, bm25_docs):
-            if v_doc not in seen:
-                fused_results.append(v_doc)
-                seen.add(v_doc)
-            if b_doc not in seen:
-                fused_results.append(b_doc)
-                seen.add(b_doc)
-                
-        # Return only the most relevant Top K chunks to save LLM context window space
-        return fused_results[:top_k]
-    
+        sparse_docs = self.bm25.get_top_n(tokenized_query, self.documents, n=top_k)
 
-    def reload(self):
-            """Forces the retriever to read the newest data from the database"""
-            print("[System] Reloading memory with new documents...")
-            db_data = self.vector_store.get()
-            self.documents = db_data['documents']
-            
-            if self.documents:
-                tokenized_docs = [doc.lower().split() for doc in self.documents]
-                self.bm25 = BM25Okapi(tokenized_docs)
-
-# ==========================================
-# Testing the Search Engine directly
-# ==========================================
-if __name__ == "__main__":
-    retriever = HybridRetriever()
-    
-    if retriever.documents:
-        while True:
-            user_query = input("\nEnter a search query (or 'exit' to quit): ")
-            if user_query.lower() == 'exit':
-                break
-                
-            results = retriever.search(user_query, top_k=2)
-            
-            print("\n--- HYBRID SEARCH RESULTS ---")
-            for i, res in enumerate(results, 1):
-                print(f"\n[Result {i}]:\n{res}")
-            print("-----------------------------")
+        # Combine and remove duplicates
+        combined = list(set(dense_docs + sparse_docs))
+        return combined[:top_k]
