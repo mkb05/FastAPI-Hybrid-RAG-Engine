@@ -130,6 +130,3 @@ Open index.html in your web browser.
 
 Click + New Chat, upload a document via the sidebar, and start querying securely!
 
-🛡️ License
-
-MIT License. See LICENSE for more information.
