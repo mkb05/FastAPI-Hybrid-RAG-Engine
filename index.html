@@ -4,446 +4,243 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Enterprise RAG Navigator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script
+      crossorigin
+      src="https://unpkg.com/react@18/umd/react.production.min.js"
+    ></script>
+    <script
+      crossorigin
+      src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"
+    ></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide-react"></script>
     <style>
       body {
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        background-color: #121212;
-        color: #ffffff;
-        margin: 0;
-        padding: 0;
-        display: flex;
-        height: 100vh;
+        background-color: #0f172a;
+        color: #f1f5f9;
       }
-      .sidebar {
-        width: 280px;
-        background-color: #1e1e1e;
-        padding: 20px;
-        border-right: 1px solid #333;
-        display: flex;
-        flex-direction: column;
+      ::-webkit-scrollbar {
+        width: 8px;
       }
-      .main-chat {
-        flex-grow: 1;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-      }
-      .chat-header {
-        padding: 20px;
-        background-color: #1e1e1e;
-        border-bottom: 1px solid #333;
-        font-weight: bold;
-        font-size: 1.2rem;
-      }
-      .chat-history {
-        flex-grow: 1;
-        padding: 20px;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 15px;
-      }
-      .message {
-        padding: 15px;
-        border-radius: 8px;
-        max-width: 80%;
-        line-height: 1.5;
-      }
-      .user-msg {
-        background-color: #2b5278;
-        align-self: flex-end;
-      }
-      .ai-msg {
-        background-color: #2d2d2d;
-        align-self: flex-start;
-        border: 1px solid #444;
-        width: 100%;
-        max-width: 90%;
-      }
-      .input-area {
-        padding: 20px;
-        background-color: #1e1e1e;
-        border-top: 1px solid #333;
-        display: flex;
-        gap: 10px;
-      }
-      input[type="text"] {
-        flex-grow: 1;
-        padding: 15px;
-        border-radius: 8px;
-        border: 1px solid #444;
-        background-color: #121212;
-        color: white;
-        font-size: 1rem;
-      }
-      button {
-        padding: 15px 30px;
-        border-radius: 8px;
-        border: none;
-        background-color: #3b82f6;
-        color: white;
-        font-weight: bold;
-        cursor: pointer;
-        transition: 0.2s;
-      }
-      button:hover {
-        background-color: #2563eb;
-      }
-      .loading {
-        display: none;
-        align-self: flex-start;
-        font-style: italic;
-        color: #888;
-      }
-      .sidebar-section {
-        margin-top: 20px;
-        border-top: 1px solid #333;
-        padding-top: 15px;
-        flex-grow: 1;
-        overflow-y: auto;
-      }
-      .upload-btn {
-        width: 100%;
-        padding: 10px;
-        background-color: #2d2d2d;
-        border: 1px dashed #555;
-        color: white;
-        cursor: pointer;
-        border-radius: 5px;
-      }
-      .upload-btn:hover {
-        background-color: #3b3b3b;
-      }
-      .new-chat-btn {
-        width: 100%;
-        padding: 10px;
-        background-color: #3b82f6;
-        border: none;
-        border-radius: 5px;
-        color: white;
-        cursor: pointer;
-        font-weight: bold;
+      ::-webkit-scrollbar-thumb {
+        background: #334155;
+        border-radius: 4px;
       }
     </style>
   </head>
   <body>
-    <div class="sidebar">
-      <h2 style="color: #3b82f6; margin-top: 0">Nexus RAG</h2>
-      <p style="color: #888; font-size: 0.9rem">
-        Status: <span style="color: #4ade80">Online</span>
-      </p>
-      <p style="color: #888; font-size: 0.9rem">Engine: Multi-Agent CRAG</p>
-      <p style="color: #888; font-size: 0.9rem">Model: Llama 3.2 (3B)</p>
+    <div id="root"></div>
 
-      <div
-        style="margin-top: 20px; border-top: 1px solid #333; padding-top: 15px"
-      >
-        <h3 style="color: #ccc; font-size: 1rem; margin-bottom: 10px">
-          Add Knowledge
-        </h3>
-        <input
-          type="file"
-          id="fileInput"
-          accept=".txt,.pdf"
-          style="display: none"
-          onchange="handleFileUpload()"
-        />
-        <button
-          class="upload-btn"
-          onclick="document.getElementById('fileInput').click()"
-        >
-          + Upload TXT or PDF
-        </button>
-        <p
-          id="uploadStatus"
-          style="font-size: 0.8rem; color: #888; margin-top: 10px"
-        ></p>
-      </div>
+    <script type="text/babel">
+      const { useState, useEffect, useRef } = React;
+      const {
+        Send,
+        Plus,
+        Trash2,
+        Upload,
+        MessageSquare,
+        Bot,
+        User,
+        Loader2,
+        CheckCircle2,
+      } = lucide;
 
-      <button
-        class="new-chat-btn"
-        onclick="startNewChat()"
-        style="margin-top: 20px"
-      >
-        + New Chat
-      </button>
+      function App() {
+        const [sessions, setSessions] = useState([]);
+        const [messages, setMessages] = useState([]);
+        const [currentSessionId, setCurrentSessionId] = useState(null);
+        const [input, setInput] = useState("");
+        const [loading, setLoading] = useState(false);
+        const [status, setStatus] = useState("Idle");
+        const chatEndRef = useRef(null);
 
-      <div class="sidebar-section">
-        <h3 style="color: #ccc; font-size: 0.9rem; margin-bottom: 10px">
-          Recent Chats
-        </h3>
-        <div
-          id="sessionList"
-          style="display: flex; flex-direction: column; gap: 5px"
-        ></div>
-      </div>
-    </div>
-
-    <div class="main-chat">
-      <div class="chat-header">Local Documentation Assistant</div>
-
-      <div class="chat-history" id="chatBox">
-        <div class="message ai-msg">
-          Hello! I am securely connected to your local technical documents. How
-          can I help you today?
-        </div>
-        <div id="loadingIndicator" class="loading">
-          Searching database and generating response...
-        </div>
-      </div>
-
-      <div class="input-area">
-        <input
-          type="text"
-          id="userInput"
-          placeholder="Ask a question about your uploaded documents..."
-          onkeypress="handleKeyPress(event)"
-        />
-        <button onclick="sendMessage()">Send</button>
-      </div>
-    </div>
-
-    <script>
-      let currentSessionId =
-        "session_" + Math.random().toString(36).substr(2, 9);
-
-      window.onload = loadSidebar;
-
-      async function loadSidebar() {
-        try {
-          const response = await fetch("http://127.0.0.1:8000/api/v1/sessions");
-          const data = await response.json();
-          const sessionList = document.getElementById("sessionList");
-          sessionList.innerHTML = "";
-
-          data.sessions.forEach((session) => {
-            const wrapper = document.createElement("div");
-            wrapper.style.cssText =
-              "display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;";
-
-            const btn = document.createElement("button");
-            btn.textContent = session.title;
-            btn.style.cssText =
-              "flex-grow: 1; text-align: left; background: none; border: none; color: #888; cursor: pointer; padding: 5px; font-size: 0.85rem; border-radius: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;";
-            btn.onmouseover = () => (btn.style.backgroundColor = "#2d2d2d");
-            btn.onmouseout = () => (btn.style.backgroundColor = "transparent");
-            btn.onclick = () => loadChatHistory(session.id);
-
-            const delBtn = document.createElement("button");
-            delBtn.innerHTML = "🗑️";
-            delBtn.style.cssText =
-              "background: none; border: none; color: #ef4444; cursor: pointer; padding: 5px; font-size: 0.8rem; border-radius: 3px; max-width: 35px;";
-            delBtn.title = "Delete Chat";
-            delBtn.onmouseover = () =>
-              (delBtn.style.backgroundColor = "#450a0a");
-            delBtn.onmouseout = () =>
-              (delBtn.style.backgroundColor = "transparent");
-            delBtn.onclick = (e) => {
-              e.stopPropagation();
-              deleteSession(session.id);
-            };
-
-            wrapper.appendChild(btn);
-            wrapper.appendChild(delBtn);
-            sessionList.appendChild(wrapper);
-          });
-        } catch (error) {
-          console.error("Failed to load sidebar", error);
-        }
-      }
-
-      function startNewChat() {
-        currentSessionId = "session_" + Math.random().toString(36).substr(2, 9);
-        const chatBox = document.getElementById("chatBox");
-        chatBox.innerHTML = `
-                <div class="message ai-msg">Started a new conversation!</div>
-                <div id="loadingIndicator" class="loading">Searching database and generating response...</div>
-            `;
-        // Clear the upload status message
-        document.getElementById("uploadStatus").textContent = "";
-      }
-
-      async function loadChatHistory(sessionId) {
-        currentSessionId = sessionId;
-        const chatBox = document.getElementById("chatBox");
-        chatBox.innerHTML = `<div id="loadingIndicator" class="loading">Searching database and generating response...</div>`;
-
-        // Clear the upload status message when loading an old chat
-        document.getElementById("uploadStatus").textContent = "";
-
-        try {
-          const response = await fetch(
-            `http://127.0.0.1:8000/api/v1/session/${sessionId}`,
-          );
-          const data = await response.json();
-
-          data.history.forEach((msg) => {
-            const div = document.createElement("div");
-            if (msg.role === "User") {
-              div.className = "message user-msg";
-              div.textContent = msg.content;
-              chatBox.insertBefore(
-                div,
-                document.getElementById("loadingIndicator"),
-              );
-            } else {
-              // Recreate the Glass-Box AI container for history
-              div.className = "message ai-msg";
-              div.style.display = "flex";
-              div.style.flexDirection = "column";
-              div.style.gap = "10px";
-
-              const text = document.createElement("div");
-              text.textContent = msg.content;
-              div.appendChild(text);
-              chatBox.insertBefore(
-                div,
-                document.getElementById("loadingIndicator"),
-              );
-            }
-          });
-          chatBox.scrollTop = chatBox.scrollHeight;
-        } catch (error) {
-          console.error("Failed to load history", error);
-        }
-      }
-
-      async function deleteSession(sessionId) {
-        if (!confirm("Are you sure you want to delete this chat permanently?"))
-          return;
-
-        try {
-          await fetch(`http://127.0.0.1:8000/api/v1/session/${sessionId}`, {
-            method: "DELETE",
-          });
-
-          if (sessionId === currentSessionId) {
-            startNewChat();
-          }
+        useEffect(() => {
           loadSidebar();
-        } catch (error) {
-          console.error("Failed to delete session", error);
-        }
-      }
+        }, []);
 
-      async function handleFileUpload() {
-        const fileInput = document.getElementById("fileInput");
-        const file = fileInput.files[0];
-        if (!file) return;
+        const loadSidebar = async () => {
+          const res = await fetch("http://127.0.0.1:8000/api/v1/sessions");
+          const data = await res.json();
+          setSessions(data.sessions || []);
+        };
 
-        const status = document.getElementById("uploadStatus");
-        status.style.color = "#eab308";
-        status.textContent = `Processing ${file.name}...`;
+        const loadChat = async (id) => {
+          setCurrentSessionId(id);
+          const res = await fetch(`http://127.0.0.1:8000/api/v1/session/${id}`);
+          const data = await res.json();
+          setMessages(data.history || []);
+        };
 
-        const formData = new FormData();
-        formData.append("file", file);
-        // Send the session ID with the file upload
-        formData.append("session_id", currentSessionId);
+        const startNewChat = () => {
+          setCurrentSessionId(
+            "sess_" + Math.random().toString(36).substr(2, 9),
+          );
+          setMessages([]);
+        };
 
-        try {
-          const response = await fetch("http://127.0.0.1:8000/api/v1/upload", {
+        const handleUpload = async (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("session_id", currentSessionId || "default");
+
+          setStatus("Processing document...");
+          await fetch("http://127.0.0.1:8000/api/v1/upload", {
             method: "POST",
             body: formData,
           });
+          setStatus("Idle");
+          loadSidebar();
+        };
 
-          if (response.ok) {
-            status.style.color = "#4ade80";
-            status.textContent = `Success! You can now ask about ${file.name}.`;
-          } else {
-            status.style.color = "#ef4444";
-            status.textContent = `Failed to process file.`;
-          }
-        } catch (error) {
-          status.style.color = "#ef4444";
-          status.textContent = "Server connection error.";
-        }
-        fileInput.value = "";
-      }
+        const sendMessage = async () => {
+          if (!input.trim()) return;
+          const newMsg = { role: "User", content: input };
+          setMessages((prev) => [...prev, newMsg]);
+          setInput("");
+          setLoading(true);
+          setStatus("Agent working...");
 
-      async function sendMessage() {
-        const inputField = document.getElementById("userInput");
-        const chatBox = document.getElementById("chatBox");
-        const loading = document.getElementById("loadingIndicator");
-        const question = inputField.value.trim();
-
-        if (!question) return;
-
-        const userDiv = document.createElement("div");
-        userDiv.className = "message user-msg";
-        userDiv.textContent = question;
-        chatBox.insertBefore(userDiv, loading);
-
-        inputField.value = "";
-        loading.style.display = "block";
-        chatBox.scrollTop = chatBox.scrollHeight;
-
-        try {
-          const response = await fetch("http://127.0.0.1:8000/api/v1/query", {
+          const res = await fetch("http://127.0.0.1:8000/api/v1/query", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              question: question,
+              question: input,
               session_id: currentSessionId,
             }),
           });
 
-          const data = await response.json();
-          loading.style.display = "none";
+          const data = await res.json();
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "AI",
+              content: data.answer,
+              status: data.status,
+              sources: data.sources,
+            },
+          ]);
+          setLoading(false);
+          setStatus("Idle");
+        };
 
-          const aiContainer = document.createElement("div");
-          aiContainer.className = "message ai-msg";
-          aiContainer.style.display = "flex";
-          aiContainer.style.flexDirection = "column";
-          aiContainer.style.gap = "10px";
+        return (
+          <div className="flex h-screen overflow-hidden font-sans">
+            {/* Sidebar */}
+            <div className="w-72 bg-slate-900 border-r border-slate-800 flex flex-col p-4">
+              <h1 className="text-xl font-bold mb-6 text-blue-500">
+                Nexus CRAG
+              </h1>
+              <button
+                onClick={startNewChat}
+                className="w-full bg-blue-600 hover:bg-blue-700 p-3 rounded-lg flex items-center gap-2 font-semibold transition"
+              >
+                <Plus size={20} /> New Conversation
+              </button>
 
-          const answerText = document.createElement("div");
-          answerText.textContent = data.answer || "Error: No answer returned.";
-          aiContainer.appendChild(answerText);
+              <div className="flex-1 overflow-y-auto mt-6 space-y-2">
+                {sessions.map((s) => (
+                  <div
+                    key={s.id}
+                    onClick={() => loadChat(s.id)}
+                    className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-800 cursor-pointer text-sm"
+                  >
+                    <span className="truncate flex-1">{s.title}</span>
+                    <Trash2
+                      size={16}
+                      className="text-slate-500 hover:text-red-400"
+                    />
+                  </div>
+                ))}
+              </div>
 
-          if (data.status) {
-            const metadataBox = document.createElement("div");
-            metadataBox.style.backgroundColor = "#1e1e1e";
-            metadataBox.style.padding = "10px";
-            metadataBox.style.borderRadius = "5px";
-            metadataBox.style.fontSize = "0.85rem";
-            metadataBox.style.border = "1px solid #444";
+              <label className="mt-auto cursor-pointer p-4 border border-dashed border-slate-700 rounded-lg hover:border-blue-500 transition">
+                <input type="file" className="hidden" onChange={handleUpload} />
+                <div className="flex items-center gap-2 text-slate-400 text-sm">
+                  <Upload size={16} /> <span>Upload Document</span>
+                </div>
+              </label>
+            </div>
 
-            let sourcesHtml = "";
-            if (data.sources && data.sources.length > 0) {
-              sourcesHtml = `<details style="margin-top: 10px; cursor: pointer;">
-                            <summary style="color: #3b82f6;">View Retrieved Context (${data.sources.length} chunks)</summary>
-                            <div style="margin-top: 10px; color: #aaa; border-top: 1px solid #333; padding-top: 10px;">
-                                ${data.sources.map((src, i) => `<p><strong>Chunk ${i + 1}:</strong> ${src}</p>`).join("")}
-                            </div>
-                        </details>`;
-            }
+            {/* Chat Area */}
+            <div className="flex-1 flex flex-col bg-slate-950">
+              <header className="h-16 border-b border-slate-800 flex items-center px-6 justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="bg-green-500/10 text-green-400 px-3 py-1 rounded-full text-xs font-medium border border-green-500/20">
+                    Status: {status}
+                  </span>
+                </div>
+              </header>
 
-            metadataBox.innerHTML = `
-                        <span style="color: ${data.status.includes("Approved") ? "#4ade80" : "#ef4444"};">
-                            <strong>Agent Routing:</strong> ${data.status}
-                        </span>
-                        ${sourcesHtml}
-                    `;
-            aiContainer.appendChild(metadataBox);
-          }
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {messages.length === 0 && (
+                  <div className="text-center mt-20 text-slate-500">
+                    Start by uploading a document and asking a question.
+                  </div>
+                )}
+                {messages.map((m, i) => (
+                  <div
+                    key={i}
+                    className={`flex gap-4 ${m.role === "User" ? "justify-end" : ""}`}
+                  >
+                    {m.role === "AI" && (
+                      <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center shrink-0">
+                        <Bot size={18} />
+                      </div>
+                    )}
+                    <div
+                      className={`max-w-[70%] p-4 rounded-2xl shadow-lg ${m.role === "User" ? "bg-blue-600" : "bg-slate-900 border border-slate-800"}`}
+                    >
+                      <p className="text-sm leading-relaxed">{m.content}</p>
+                      {m.sources && (
+                        <div className="mt-3 pt-3 border-t border-slate-700 text-[10px] text-slate-400">
+                          <span className="font-bold">Agent Routing:</span>{" "}
+                          {m.status}
+                        </div>
+                      )}
+                    </div>
+                    {m.role === "User" && (
+                      <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center shrink-0">
+                        <User size={18} />
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {loading && (
+                  <div className="text-blue-500 animate-pulse text-sm">
+                    Thinking...
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
 
-          chatBox.insertBefore(aiContainer, loading);
-          loadSidebar();
-        } catch (error) {
-          loading.style.display = "none";
-          const errorDiv = document.createElement("div");
-          errorDiv.className = "message ai-msg";
-          errorDiv.style.color = "#ef4444";
-          errorDiv.textContent =
-            "Connection Error: Is your FastAPI server running?";
-          chatBox.insertBefore(errorDiv, loading);
-        }
-        chatBox.scrollTop = chatBox.scrollHeight;
+              <div className="p-6">
+                <div className="flex gap-2">
+                  <input
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && sendMessage()}
+                    placeholder="Type your question..."
+                    className="flex-1 bg-slate-900 border border-slate-700 rounded-xl p-4 focus:outline-none focus:border-blue-500"
+                  />
+                  <button
+                    onClick={sendMessage}
+                    className="bg-blue-600 p-4 rounded-xl hover:bg-blue-700"
+                  >
+                    <Send size={20} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
       }
 
-      function handleKeyPress(event) {
-        if (event.key === "Enter") sendMessage();
-      }
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<App />);
     </script>
   </body>
 </html>
