@@ -111,9 +111,13 @@ def delete_session(session_id: str):
         
         # Delete from our custom sidebar table
         cursor.execute("DELETE FROM chat_sessions WHERE session_id = ?", (session_id,))
-        # Delete from LangGraph's internal memory tables
-        cursor.execute("DELETE FROM checkpoints WHERE thread_id = ?", (session_id,))
-        cursor.execute("DELETE FROM checkpoint_writes WHERE thread_id = ?", (session_id,))
+        # 2. Try to delete from LangGraph tables individually. 
+        # If the table doesn't exist, it simply catches the error and moves on.
+        for table in ["checkpoints", "checkpoint_writes"]:
+            try:
+                cursor.execute(f"DELETE FROM {table} WHERE thread_id = ?", (session_id,))
+            except sqlite3.OperationalError:
+                print(f"[Warning] Table '{table}' not found in database. Skipping.")
         
         conn.commit()
         conn.close()
