@@ -1,0 +1,12 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Electron/Vite build artifacts
+dist/
+release/
+*.log
+
+# Binaries
+bin/
+*.exe
