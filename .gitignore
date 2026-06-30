@@ -4,3 +4,7 @@ __pycache__/
 .env
 chroma_db/
 data/docs/
+build\main
+build/
+dist/
+*.exe
